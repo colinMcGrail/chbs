@@ -8,4 +8,4 @@ BEGIN {
     for (i = 1; i <= n; i++) printf "%d,", ord[substr($0, i, 1)]
     for (i = n; i < 9; i++) printf "0,"
 }
-END { printf "0};\n" }
+END { printf "};\n" }

@@ -5,6 +5,15 @@ Inspired by [https://xkcd.com/936/](https://xkcd.com/936).
 
 ![suck it randall i can alt text too](https://imgs.xkcd.com/comics/password_strength.png)
 
-To use: `$ chbs [wordcount]`
+```
+Usage: chbs [-c|-C] [-n] [-w WORDCOUNT]
+   or: chbs [-c|-C] -s SEPARATOR [-w WORDCOUNT]
+
+  -c        capitalizes first letter of each word
+  -C        capitalizes all letters of each word
+  -n        does not print a separator between each character
+  -s        uses SEPARATOR as custom separator (valid separators: ASCII 32-126)
+  -w        prints WORDCOUNT words
+```
 
 Defaults to 7 words (84 bits of entropy).

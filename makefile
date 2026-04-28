@@ -9,7 +9,7 @@ wordtable.o: wordtable.c
 wordtable.c: format.awk wordlist.txt
 	awk -f format.awk wordlist.txt > wordtable.c
 
-chbs.o: chbs.c
+chbs.o: chbs.c text.h
 	$(CC) $(CFLAGS) -c chbs.c
 
 clean:
