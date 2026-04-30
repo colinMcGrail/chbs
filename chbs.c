@@ -3,35 +3,42 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ctype.h>
+#include <stdnoreturn.h>
 
 #include "text.h"
 
 #define WORDNUM 4096
 #define WORDPAD 9
 #define DEF_LEN 7
-#define DEF_SEP '-'
 
-void wordgen(char);
+struct Input {
+    unsigned long wordcount;
+    char separator;
+    enum Caps {NONE, FIRST, ALL} caps;
+};
 
-void processargs(int, char**, char[], long unsigned int*);
+void wordgen(enum Caps);
+
+void processargs(int, char**, struct Input*);
 
 int main(int argc, char** argv)
 {
-    unsigned long i, wordcount = DEF_LEN;
+    struct Input input = {DEF_LEN, '\0', FIRST};
     unsigned int entropyTest;
-    char flags[] = {'\0', '\0'};
 
     // Checks to make sure entropy source is available.
     if(getentropy(&entropyTest, sizeof(unsigned int)) == -1){
         perror(ENT_ERR);
         exit(EXIT_FAILURE);
     }
-    processargs(argc, argv, flags, &wordcount);
 
-    for(i = 0; i < wordcount; i++){
-        wordgen(flags[0]);
-        if (i < wordcount - 1 && flags[1] != 1){
-            putc(flags[1], stdout);
+    processargs(argc, argv, &input);
+
+    for(unsigned long i = 0; i < input.wordcount; i++){
+        wordgen(input.caps);
+        if (i < input.wordcount - 1 && input.separator != '\0'){
+            putc(input.separator, stdout);
         }
     }
     putc('\n', stdout);
@@ -39,70 +46,54 @@ int main(int argc, char** argv)
     exit(EXIT_SUCCESS);
 }
 
-void errmsg(){
+noreturn void errmsg(const char * msg, char option)
+{
+    if(option == '\0')
+        fputs(msg, stderr);
+    else
+        fprintf(stderr, msg, option);
     fputs(USAGE, stderr);
     fputs(HELPMSG, stderr);
     exit(EXIT_FAILURE);
 }
 
-void processargs(int argc, char **argv, char flags[], long unsigned int* wordcount){
+void processargs(int argc, char** argv, struct Input* input)
+{
     char* endptr;
-    char c;
+    int c;
 
-    while ((c = getopt(argc, argv, "+:ns:w:cCh")) != -1) {
+    while ((c = getopt(argc, argv, "+:hcls:n:")) != -1) {
         switch(c) {
-            case 'h':
+            case 'h': // Print help and exit
                 fputs(USAGE, stderr);
                 fputs(HELP, stderr);
                 exit(EXIT_SUCCESS);
-            case 'c': // Capitalize first letter of each word
-                if (!flags[0])
-                    flags[0] = 1;
+            case 'c': // capitalize all letters
+                if(input->caps == NONE) errmsg(CL_BOTH_ERR, '\0');
+                input->caps = ALL;
                 break;
-            case 'C': // Capitalize all letters
-                flags[0] = 2;
+            case 'l': // lowercase all letters
+                if(input->caps == ALL) errmsg(CL_BOTH_ERR, '\0');
+                input->caps = NONE;
+                break;
+            case 's': // print separator between words
+                if (isprint(optarg[0]) && optarg[1] == '\0')
+                    input->separator = optarg[0];
+                else errmsg(BAD_SEP_ERR,'\0');
                 break;
             case 'n':
-                if (flags[1])
-                    errmsg();
-                else {
-                    flags[1] = 1;
-                }
-                break;
-            case 's':
-                if (flags[1])
-                    errmsg();
-                else if (optarg[0] < 32  ||
-                         optarg[0] > 126 ||
-                         optarg[1] != '\0') {
-                    fputs(BAD_SEP_ERR, stderr);
-                    errmsg();
-                } else {
-                    flags[1] = optarg[0];
-                }
-                break;
-            case 'w':
                 errno = 0;
-                *wordcount = strtoul(optarg, &endptr, 0);
-                if (endptr[0] != '\0' || errno == EINVAL) {
-                    fputs(NOT_INT_ERR, stderr);
-                    errmsg();
-                }
-                if (*wordcount == 0 || errno == ERANGE){
-                    fputs(BAD_INT_ERR, stderr);
-                    errmsg();
-                }
+                input->wordcount = strtoul(optarg, &endptr, 0);
+                if (endptr[0] != '\0' || errno == EINVAL)
+                    errmsg(NOT_INT_ERR, '\0');
+                if (input->wordcount == 0 || errno == ERANGE)
+                    errmsg(BAD_INT_ERR, '\0');
                 break;
             case ':':
-                fprintf(stderr, NO_ARG_ERR, optopt);
-                errmsg();
+                errmsg(NO_ARG_ERR, optopt);
             case '?':
-                fprintf(stderr, HUH_OPT_ERR, optopt);
-                errmsg();
+                errmsg(HUH_OPT_ERR, optopt);
         }
-    }
-    if(flags[1]=='\0'){
-        flags[1] = DEF_SEP;
     }
 }
 
@@ -114,14 +105,14 @@ unsigned int genNum() // generates random word index
     return (randomNumber % WORDNUM);
 }
 
-void wordgen(char flag) // gets random word from words[]
+void wordgen(enum Caps caps) // gets random word from words[]
 {
     extern char words[];
 
     int randword = (genNum() * WORDPAD);
     for(char i = 0; i < WORDPAD && words[randword + i] != '\0'; i++){
-        if(flag == 2 || (flag == 1 && i == 0)){
-            putc((words[randword + i] - 32), stdout);
+        if(caps == ALL || (caps == FIRST && i == 0)){
+            putc(toupper(words[randword + i]), stdout);
         } else {
            putc((words[randword + i]), stdout);
         }

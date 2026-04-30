@@ -1,7 +1,7 @@
 .PHONY: clean
 
 chbs: chbs.o wordtable.o
-	$(CC) chbs.o wordtable.o -o chbs
+	$(CC) $(LDFLAGS) chbs.o wordtable.o -o chbs
 
 wordtable.o: wordtable.c
 	$(CC) $(CFLAGS) -c wordtable.c
